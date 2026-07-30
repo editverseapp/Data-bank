@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Bank - Real-Time Data Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0A0F1D',
+                        cardBg: 'rgba(255, 255, 255, 0.05)',
+                        neonCyan: '#00F2FE',
+                        neonBlue: '#4FACFE',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-darkBg text-white font-sans flex items-center justify-center min-h-screen p-0 sm:p-4">
+
+    <div class="w-full sm:max-w-[420px] h-[100vh] sm:h-[850px] bg-darkBg sm:rounded-[40px] sm:border-4 sm:border-cyan-500/30 flex flex-col relative overflow-hidden shadow-2xl">
+
+        <!-- ============ DEVICE DETECT & CONNECT SCREEN ============ -->
+        <div id="authScreen" class="absolute inset-0 z-30 bg-darkBg flex flex-col justify-center p-6 hidden">
+            <!-- Stage 1: Detecting -->
+            <div id="detectingStage" class="text-center">
+                <div class="w-20 h-20 mx-auto rounded-full glass-card border-2 border-cyan-400 flex items-center justify-center text-neonCyan text-2xl neon-glow mb-5">
+                    <i class="fa-solid fa-satellite-dish fa-spin"></i>
+                </div>
+                <h1 class="font-bold text-lg">Detecting Your Device...</h1>
+                <p class="text-xs text-cyan-400/60 mt-2">Real device info scan ho raha hai</p>
+                <div class="w-full bg-white/10 h-1 rounded-full overflow-hidden mt-6">
+                    <div id="detectProgressBar" class="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full w-0 transition-all duration-[5000ms] ease-linear"></div>
+                </div>
+            </div>
+
+            <!-- Stage 2: Device Found + Connect -->
+            <div id="deviceFoundStage" class="hidden">
+                <div class="text-center mb-5">
+                    <div class="w-16 h-16 mx-auto rounded-2xl glass-card flex items-center justify-center text-neonCyan neon-glow mb-3">
+                        <i class="fa-solid fa-mobile-screen-button text-2xl"></i>
+                    </div>
+                    <h1 class="font-bold text-lg">Device Detected</h1>
+                    <p class="text-xs text-cyan-400/60">Real-time browser/device scan</p>
+                </div>
+                <div class="glass-card rounded-2xl p-4 space-y-2 mb-5" id="detectedDeviceCard"></div>
+                <button onclick="handleConnectDevice()" id="connectDeviceBtn" class="w-full py-3 rounded-xl bg-cyan-500/20 border border-cyan-400/50 text-neonCyan font-semibold text-sm hover:bg-cyan-500/30 transition">
+                    <i class="fa-solid fa-link mr-1"></i> Connect This Device
+                </button>
+                <p id="connectError" class="text-red-400 text-xs mt-2 hidden text-center"></p>
+            </div>
+
+            <!-- Stage 3: Connecting -->
+            <div id="connectingStage" class="hidden text-center">
+                <div class="w-20 h-20 mx-auto rounded-full glass-card border-2 border-emerald-400 flex items-center justify-center text-emerald-400 text-2xl neon-glow mb-5">
+                    <i class="fa-solid fa-shield-halved fa-beat"></i>
+                </div>
+                <h1 class="font-bold text-lg">Connecting Device...</h1>
+                <p class="text-xs text-cyan-400/60 mt-2">Secure real-time link ban raha hai</p>
+                <div class="w-full bg-white/10 h-1 rounded-full overflow-hidden mt-6">
+                    <div id="connectProgressBar" class="bg-gradient-to-r from-emerald-400 to-cyan-400 h-full w-0 transition-all duration-[5000ms] ease-linear"></div>
+                </div>
+            </div>
+
+            <!-- Admin-only login (hidden by default) -->
+            <div class="text-center mt-6">
+                <button onclick="toggleAdminLogin()" class="text-[10px] text-cyan-400/40 hover:text-cyan-400/70 underline">Admin Login</button>
+            </div>
+            <div id="adminLoginBox" class="hidden glass-card rounded-2xl p-4 space-y-3 mt-3">
+                <input id="authEmail" type="email" class="w-full rounded-lg p-2.5 text-sm" placeholder="Admin email">
+                <input id="authPassword" type="password" class="w-full rounded-lg p-2.5 text-sm" placeholder="Password">
+                <p id="authError" class="text-red-400 text-xs hidden"></p>
+                <button onclick="handleAdminLoginSubmit()" class="w-full py-2 rounded-xl bg-purple-500/20 border border-purple-400/50 text-purple-200 font-semibold text-xs hover:bg-purple-500/30 transition">Admin Sign In</button>
+            </div>
+        </div>
+
+        <!-- ============ APP LOCK OVERLAY (PIN) ============ -->
+        <div id="lockOverlay" class="absolute inset-0 z-50 bg-darkBg/98 backdrop-blur flex flex-col items-center justify-center p-6 hidden">
+            <i class="fa-solid fa-shield-halved text-neonCyan text-3xl mb-4 neon-text"></i>
+            <p class="text-sm text-cyan-300 mb-4">Enter PIN to continue</p>
+            <input id="lockPinInput" type="password" inputmode="numeric" maxlength="4" class="w-32 text-center text-2xl tracking-[10px] rounded-xl p-3 mb-3" placeholder="----">
+            <p id="lockError" class="text-red-400 text-xs mb-3 hidden">Wrong PIN</p>
+            <button onclick="submitLockPin()" class="px-6 py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-400/50 text-neonCyan text-sm font-semibold">Unlock</button>
+        </div>
+
+        <!-- ============ MAIN APP ============ -->
+        <div id="mainApp" class="hidden flex-col h-full">
+
+            <div class="flex justify-between items-center px-6 pt-4 pb-2 text-xs text-cyan-300/70 select-none">
+                <span id="liveClock">--:--</span>
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-signal text-[10px]"></i>
+                    <i class="fa-solid fa-wifi text-[10px]"></i>
+                    <span id="syncIcon"><i class="fa-solid fa-rotate text-[10px]"></i></span>
+                </div>
+            </div>
+
+            <header class="px-6 py-3 flex justify-between items-center border-b border-cyan-500/10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl glass-card flex items-center justify-center text-neonCyan neon-glow">
+                        <i class="fa-solid fa-vault text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg tracking-wider text-white">DATA BANK</h1>
+                        <p class="text-[10px] text-cyan-400/70" id="headerSub">Live Secure Vault</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 relative">
+                    <button onclick="lockAppNow()" id="lockBtn" class="w-9 h-9 rounded-full glass-card flex items-center justify-center text-cyan-400 hover:text-white transition">
+                        <i class="fa-solid fa-shield-halved text-sm"></i>
+                    </button>
+                    <button onclick="toggleNotifications()" class="w-9 h-9 rounded-full glass-card flex items-center justify-center relative hover:border-cyan-400 transition">
+                        <i class="fa-regular fa-bell text-sm text-cyan-300"></i>
+                        <span id="notifDot" class="absolute top-2 right-2 w-2 h-2 bg-cyan-400 rounded-full animate-ping hidden"></span>
+                    </button>
+                    <div id="notifPanel" class="hidden absolute top-11 right-0 w-64 glass-card rounded-xl p-3 z-20 max-h-64 overflow-y-auto space-y-2"></div>
+                </div>
+            </header>
+
+            <main id="mainContent" class="flex-1 overflow-y-auto px-6 py-4 pb-24 space-y-5">
+
+                <!-- TAB 1: DASHBOARD -->
+                <section id="tab-dashboard" class="space-y-5">
+                    <div class="glass-card rounded-2xl p-4 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center text-neonCyan">
+                                <i class="fa-solid fa-user text-xl"></i>
+                            </div>
+                            <div>
+                                <h2 id="welcomeName" class="font-semibold text-sm text-white">--</h2>
+                                <p class="text-xs text-emerald-400 flex items-center gap-1 mt-0.5">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Real-time Sync Active
+                                </p>
+                            </div>
+                        </div>
+                        <button onclick="handlePaymentBadgeClick()" id="paymentBadge" class="text-xs px-2.5 py-1 rounded-full border">--</button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+                            <div class="flex justify-between items-start text-cyan-400/70 text-xs">
+                                <span>Carrier Pool</span>
+                                <button onclick="switchTab('settings')" title="Edit in Settings"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                            </div>
+                            <div class="my-3">
+                                <h3 id="carrierDataVal" class="text-2xl font-bold text-white">-- <span class="text-sm font-normal text-cyan-300">GB</span></h3>
+                                <p class="text-[10px] text-cyan-400/60 mt-0.5">Set manually in Settings</p>
+                            </div>
+                            <div class="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+                                <div id="carrierBar" class="bg-gradient-to-r from-cyan-400 to-blue-500 h-full w-0 transition-all duration-500"></div>
+                            </div>
+                        </div>
+
+                        <div class="glass-card rounded-2xl p-4 flex flex-col justify-between border-cyan-400/30">
+                            <div class="flex justify-between items-start text-cyan-300 text-xs">
+                                <span>Data Vault</span>
+                                <i class="fa-solid fa-lock text-neonCyan"></i>
+                            </div>
+                            <div class="my-3">
+                                <h3 id="vaultDataVal" class="text-2xl font-bold text-neonCyan neon-text">-- <span class="text-sm font-normal text-cyan-300">GB</span></h3>
+                                <p class="text-[10px] text-emerald-400 mt-0.5">Secure storage</p>
+                            </div>
+                            <div class="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+                                <div id="vaultBar" class="bg-gradient-to-r from-neonCyan to-emerald-400 h-full w-0 transition-all duration-500"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-cyan-400/70 mb-3">Quick Operations</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button onclick="openModal('save')" class="glass-card rounded-2xl p-4 text-left hover:border-cyan-400 transition group">
+                                <div class="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-300 mb-3 group-hover:scale-110 transition">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                                </div>
+                                <h4 class="font-semibold text-sm">Save Data</h4>
+                                <p class="text-[11px] text-cyan-300/60 mt-0.5">Transfer to Vault</p>
+                            </button>
+
+                            <button onclick="openModal('withdraw')" class="glass-card rounded-2xl p-4 text-left hover:border-cyan-400 transition group">
+                                <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 mb-3 group-hover:scale-110 transition">
+                                    <i class="fa-solid fa-cloud-arrow-down"></i>
+                                </div>
+                                <h4 class="font-semibold text-sm">Withdraw</h4>
+                                <p class="text-[11px] text-cyan-300/60 mt-0.5">Restore to device</p>
+                            </button>
+
+                            <button onclick="switchTab('shared')" class="glass-card rounded-2xl p-4 text-left hover:border-cyan-400 transition group">
+                                <div class="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 mb-3 group-hover:scale-110 transition">
+                                    <i class="fa-solid fa-users-viewfinder"></i>
+                                </div>
+                                <h4 class="font-semibold text-sm">Shared Pool</h4>
+                                <p class="text-[11px] text-cyan-300/60 mt-0.5">Family & P2P</p>
+                            </button>
+
+                            <button onclick="switchTab('analytics')" class="glass-card rounded-2xl p-4 text-left hover:border-cyan-400 transition group">
+                                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-3 group-hover:scale-110 transition">
+                                    <i class="fa-solid fa-chart-line"></i>
+                                </div>
+                                <h4 class="font-semibold text-sm">Analytics</h4>
+                                <p class="text-[11px] text-cyan-300/60 mt-0.5">Usage & trends</p>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="glass-card rounded-2xl p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-xs font-semibold uppercase tracking-wider text-cyan-400/70">Recent Transactions</h3>
+                            <button onclick="clearHistory()" class="text-[10px] text-cyan-400 hover:underline">Clear Log</button>
+                        </div>
+                        <div id="transactionLogContainer" class="space-y-3">
+                            <p class="text-xs text-cyan-400/40 text-center py-4">No transactions yet</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 2: VAULT -->
+                <section id="tab-vault" class="space-y-5 hidden">
+                    <div class="text-center py-4">
+                        <div class="w-24 h-24 mx-auto rounded-full glass-card border-2 border-cyan-400 flex items-center justify-center text-neonCyan text-3xl neon-glow animate-pulse">
+                            <i class="fa-solid fa-vault"></i>
+                        </div>
+                        <h2 class="text-lg font-bold mt-4">Encrypted Data Vault</h2>
+                        <p class="text-xs text-cyan-400/70">Real-time persistent Postgres ledger</p>
+                    </div>
+
+                    <div class="glass-card rounded-2xl p-4 space-y-4">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-cyan-300/70">Vault Storage Used</span>
+                            <span id="vaultStatsText" class="font-semibold">-- GB / 50 GB</span>
+                        </div>
+                        <div class="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                            <div id="vaultProgressBar" class="bg-gradient-to-r from-neonCyan to-blue-500 h-full w-0 transition-all duration-500"></div>
+                        </div>
+                        <div class="flex justify-between text-[11px] text-cyan-400/60">
+                            <span>Status: PIN Protected</span>
+                            <span id="lockStatusBadge" class="text-emerald-400">Unlocked</span>
+                        </div>
+                    </div>
+
+                    <div class="glass-card rounded-2xl p-4 border border-purple-500/30">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <span class="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full font-semibold">Staking Rewards</span>
+                                <h3 class="font-semibold text-sm mt-1">Lock Vault for 30 Days</h3>
+                            </div>
+                            <i class="fa-solid fa-award text-purple-400 text-xl"></i>
+                        </div>
+                        <p id="stakeStatusText" class="text-xs text-cyan-300/70 mb-3">Lock stored data to earn +5% bonus, credited after 30 real days.</p>
+                        <button onclick="handleStakeButton()" id="stakeBtn" class="w-full py-2.5 rounded-xl bg-purple-600/30 border border-purple-500/50 text-purple-200 text-xs font-semibold hover:bg-purple-600/50 transition">
+                            Lock Data (Start Staking)
+                        </button>
+                    </div>
+                </section>
+
+                <!-- TAB 3: SHARED -->
+                <section id="tab-shared" class="space-y-5 hidden">
+                    <h2 class="font-bold text-base">Family & P2P Network</h2>
+
+                    <div class="glass-card rounded-2xl p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div id="myAvatarInitials" class="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-300 font-bold">--</div>
+                                <div>
+                                    <h4 id="myDisplayNameLabel" class="text-sm font-semibold">--</h4>
+                                    <p class="text-[10px] text-cyan-400/60">Primary Account</p>
+                                </div>
+                            </div>
+                            <span class="text-xs text-emerald-400">Active Node</span>
+                        </div>
+                        <div class="border-t border-white/10 pt-3 flex items-center justify-between">
+                            <div>
+                                <p class="text-[10px] text-cyan-400/60">Your Node ID (share this)</p>
+                                <p id="myNodeIdLabel" class="font-mono text-lg text-neonCyan neon-text">------</p>
+                            </div>
+                            <button onclick="copyNodeId()" class="px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 text-xs hover:bg-cyan-500/30 transition">
+                                <i class="fa-regular fa-copy"></i> Copy
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="glass-card rounded-2xl p-4 space-y-3">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-cyan-400/70">Add a Node</h3>
+                        <div class="flex gap-2">
+                            <input id="addNodeIdInput" type="text" maxlength="6" placeholder="Enter Node ID" class="flex-1 rounded-lg p-2.5 text-sm uppercase">
+                            <button onclick="handleAddConnection()" class="px-4 rounded-lg bg-cyan-500/20 text-cyan-300 text-xs font-semibold hover:bg-cyan-500/30 transition">Connect</button>
+                        </div>
+                        <p id="addNodeError" class="text-red-400 text-xs hidden"></p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-cyan-400/70">Connected Nodes</h3>
+                        <div id="connectionsList" class="space-y-2">
+                            <p class="text-xs text-cyan-400/40 text-center py-3">No connected nodes yet</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 4: ANALYTICS -->
+                <section id="tab-analytics" class="space-y-5 hidden">
+                    <h2 class="font-bold text-base">Weekly Analytics</h2>
+
+                    <div class="glass-card rounded-2xl p-4 space-y-3">
+                        <div class="flex justify-between text-xs text-cyan-400/70">
+                            <span>Total Data Saved (All Time)</span>
+                            <span id="analyticsTotalSaved" class="text-emerald-400 font-bold">0.0 GB</span>
+                        </div>
+                        <div id="analyticsBarChart" class="h-32 flex items-end justify-between gap-2 pt-4 border-b border-white/10"></div>
+                        <div id="analyticsDayLabels" class="flex justify-between text-[10px] text-cyan-400/60"></div>
+                    </div>
+
+                    <div class="glass-card rounded-2xl p-4 grid grid-cols-2 gap-4 text-center">
+                        <div>
+                            <p class="text-[10px] text-cyan-400/60">Total Withdrawn</p>
+                            <p id="analyticsWithdrawn" class="text-lg font-bold text-blue-300">0.0 GB</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-cyan-400/60">Total Sent to Family</p>
+                            <p id="analyticsSent" class="text-lg font-bold text-purple-300">0.0 GB</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 5: SETTINGS -->
+                <section id="tab-settings" class="space-y-5 hidden">
+                    <h2 class="font-bold text-base">App Settings</h2>
+
+                    <div class="glass-card rounded-2xl p-4 space-y-2">
+                        <div class="flex justify-between items-center">
+                            <h4 class="text-sm font-semibold">Device Info (auto-detected)</h4>
+                            <i class="fa-solid fa-microchip text-cyan-400 text-xs"></i>
+                        </div>
+                        <div id="deviceInfoBox" class="text-[11px] text-cyan-300/80 space-y-1"></div>
+                        <p class="text-[10px] text-cyan-400/40">Browser se genuinely detect hone wali info hai — SIM/carrier data balance browser se read nahi ho sakta, isliye wo neeche manually set karo.</p>
+                    </div>
+
+                    <div class="glass-card rounded-2xl p-4 space-y-3">
+                        <h4 class="text-sm font-semibold">Carrier Balance</h4>
+                        <p class="text-[10px] text-cyan-400/60">Apna current SIM data balance yahan manually enter karo (jitna asal me hai)</p>
+                        <div class="flex gap-2">
+                            <input id="carrierBalanceInput" type="number" min="0" step="0.1" class="flex-1 rounded-lg p-2.5 text-sm" placeholder="e.g. 10">
+                            <button onclick="handleSetCarrierBalance()" class="px-4 rounded-lg bg-cyan-500/20 text-cyan-300 text-xs font-semibold hover:bg-cyan-500/30 transition">Set</button>
+                        </div>
+                    </div>
+
+                    <div class="glass-card rounded-2xl p-4 space-y-4">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h4 class="text-sm font-semibold">PIN Lock on Withdraw</h4>
+                                <p class="text-[10px] text-cyan-400/60">Require your PIN before withdraw/unstake</p>
+                            </div>
+                            <input type="checkbox" id="settingPinLock" onchange="handlePinLockToggle()" class="accent-cyan-400 w-4 h-4 cursor-pointer">
+                        </div>
+                        <div class="border-t border-white/10 pt-3 flex justify-between items-center">
+                            <div>
+                                <h4 class="text-sm font-semibold">Smart Autopilot</h4>
+                                <p class="text-[10px] text-cyan-400/60">Enable background sweep preference flag</p>
+                            </div>
+                            <input type="checkbox" id="settingAutopilot" onchange="saveSettings()" class="accent-cyan-400 w-4 h-4 cursor-pointer">
+                        </div>
+                        <div class="border-t border-white/10 pt-3 flex justify-between items-center">
+                            <div>
+                                <h4 class="text-sm font-semibold">Reset App Data</h4>
+                                <p class="text-[10px] text-cyan-400/60">Clear balances & transaction history</p>
+                            </div>
+                            <button onclick="resetAppData()" class="px-3 py-1 bg-red-500/20 text-red-400 text-xs rounded-lg hover:bg-red-500/30 transition">Reset</button>
+                        </div>
+                        <div class="border-t border-white/10 pt-3 flex justify-between items-center">
+                            <div>
+                                <h4 class="text-sm font-semibold">Sign Out</h4>
+                                <p class="text-[10px] text-cyan-400/60" id="settingsEmailLabel">--</p>
+                            </div>
+                            <button onclick="handleSignOut()" class="px-3 py-1 bg-white/10 text-white text-xs rounded-lg hover:bg-white/20 transition">Sign Out</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 6: ADMIN (visible only to admin email) -->
+                <section id="tab-admin" class="space-y-5 hidden">
+                    <h2 class="font-bold text-base">Payment Approvals</h2>
+                    <p class="text-xs text-cyan-400/60">Admin only</p>
+
+                    <div>
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-cyan-400/70 mb-2">Pending Requests</h3>
+                        <div id="adminPendingList" class="space-y-3">
+                            <p class="text-xs text-cyan-400/40 text-center py-4">No pending requests</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-cyan-400/70 mb-2">Recent History</h3>
+                        <div id="adminHistoryList" class="space-y-2"></div>
+                    </div>
+                </section>
+
+            </main>
+
+            <!-- Bottom Nav -->
+            <nav class="absolute bottom-0 left-0 right-0 glass-card border-t border-cyan-500/10 flex justify-around items-center py-3 px-2">
+                <button onclick="switchTab('dashboard')" data-tab="dashboard" class="tab-btn active flex flex-col items-center gap-1 text-cyan-400/50 text-[10px] w-14">
+                    <i class="fa-solid fa-house text-base"></i>Home
+                    <span class="tab-dot w-1 h-1 rounded-full bg-neonCyan opacity-0"></span>
+                </button>
+                <button onclick="switchTab('vault')" data-tab="vault" class="tab-btn flex flex-col items-center gap-1 text-cyan-400/50 text-[10px] w-14">
+                    <i class="fa-solid fa-vault text-base"></i>Vault
+                    <span class="tab-dot w-1 h-1 rounded-full bg-neonCyan opacity-0"></span>
+                </button>
+                <button onclick="switchTab('shared')" data-tab="shared" class="tab-btn flex flex-col items-center gap-1 text-cyan-400/50 text-[10px] w-14">
+                    <i class="fa-solid fa-users text-base"></i>Shared
+                    <span class="tab-dot w-1 h-1 rounded-full bg-neonCyan opacity-0"></span>
+                </button>
+                <button onclick="switchTab('analytics')" data-tab="analytics" class="tab-btn flex flex-col items-center gap-1 text-cyan-400/50 text-[10px] w-14">
+                    <i class="fa-solid fa-chart-line text-base"></i>Stats
+                    <span class="tab-dot w-1 h-1 rounded-full bg-neonCyan opacity-0"></span>
+                </button>
+                <button onclick="switchTab('settings')" data-tab="settings" class="tab-btn flex flex-col items-center gap-1 text-cyan-400/50 text-[10px] w-14">
+                    <i class="fa-solid fa-gear text-base"></i>Settings
+                    <span class="tab-dot w-1 h-1 rounded-full bg-neonCyan opacity-0"></span>
+                </button>
+                <button onclick="switchTab('admin')" data-tab="admin" id="navAdminBtn" class="tab-btn hidden flex-col items-center gap-1 text-cyan-400/50 text-[10px] w-14">
+                    <i class="fa-solid fa-user-shield text-base"></i>Admin
+                    <span class="tab-dot w-1 h-1 rounded-full bg-neonCyan opacity-0"></span>
+                </button>
+            </nav>
+
+            <!-- Action Modal -->
+            <div id="actionModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+                <div class="w-full sm:max-w-md bg-darkBg border border-cyan-500/30 sm:rounded-3xl rounded-t-3xl p-6 space-y-5 shadow-2xl">
+                    <div class="flex justify-between items-center">
+                        <h3 id="modalTitle" class="font-bold text-lg text-white">Save Mobile Data</h3>
+                        <button onclick="closeModal()" class="text-cyan-400/70 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                    </div>
+                    <div id="modalBody" class="space-y-4"></div>
+                    <p id="modalError" class="text-red-400 text-xs hidden"></p>
+                    <button id="modalConfirmBtn" onclick="handleModalConfirm()" class="w-full py-3 rounded-xl bg-cyan-500/20 border border-cyan-400/50 text-neonCyan font-semibold text-sm hover:bg-cyan-500/30 transition">Confirm</button>
+                </div>
+            </div>
+
+            <!-- Payment Gate Modal -->
+            <div id="paymentModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+                <div class="w-full sm:max-w-md bg-darkBg border border-cyan-500/30 sm:rounded-3xl rounded-t-3xl p-6 space-y-4 shadow-2xl max-h-[88vh] overflow-y-auto">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-lg text-white">Unlock Save &amp; Withdraw</h3>
+                        <button onclick="closePaymentModal()" class="text-cyan-400/70 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                    </div>
+                    <div id="paymentModalBody" class="space-y-4"></div>
+                </div>
+            </div>
+
+            <div id="toastContainer" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] space-y-2 w-[90%] sm:max-w-[380px]"></div>
+        </div>
+    </div>
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

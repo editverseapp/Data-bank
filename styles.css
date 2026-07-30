@@ -1,0 +1,21 @@
+        html, body { height: 100%; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 242, 254, 0.15);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .neon-glow { box-shadow: 0 0 20px rgba(0, 242, 254, 0.25); }
+        .neon-text { text-shadow: 0 0 10px rgba(0, 242, 254, 0.5); }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #00F2FE; border-radius: 10px; }
+        .tab-btn.active { color: #00F2FE; }
+        .tab-btn.active .tab-dot { opacity: 1; }
+        input[type="text"], input[type="email"], input[type="password"], input[type="number"], textarea {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(0,242,254,0.2);
+        }
+        input:focus, textarea:focus { outline: none; border-color: #00F2FE; }
+        .toast { animation: slideUp .25s ease-out; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity:0; } to { transform: translateY(0); opacity:1; } }

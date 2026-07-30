@@ -1,0 +1,10 @@
+{
+  "name": "data-bank-app",
+  "version": "1.0.0",
+  "description": "Real-time mobile data wallet - Save, Withdraw, Share with Supabase backend",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
